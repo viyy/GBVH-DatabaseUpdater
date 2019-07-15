@@ -10,8 +10,20 @@ namespace GBVH_DatabaseUpdater
     {
         private const string DefaultScriptsPath = "..\\Assets\\DatabaseSQLScripts";
         private const string DefaultDbPath = "..\\Assets\\StreamingAssets\\world.bytes";
+        private const string DefaultSavePath = "..\\Assets\\StreamingAssets\\progress.bytes"; 
         private static string Error = "";
-        private const string CreateSqlScript = "00000000-0000_world_create.sql";
+        
+        private const int WORLD = 0;
+        private const int PROGRESS = 1;
+        
+        private static readonly Dictionary<int, (string, string)> _scripts = new Dictionary<int, (string, string)>
+        {
+            {WORLD, ("world", "00000000-0000_world_create.sql")},
+            {PROGRESS, ("progress", "00000000-0000_progress_create.sql")}
+        };
+
+
+        
         public static void Main(string[] args)
         {
             try
@@ -19,18 +31,21 @@ namespace GBVH_DatabaseUpdater
                 ConsoleKeyInfo key;
                 var scr = DefaultScriptsPath;
                 var dbp = DefaultDbPath;
-                if (args.Length >= 0)
+                var dbs = DefaultSavePath;
+                if (args.Length > 0)
                 {
                     if (args[0] =="-s")
-                        StartUpdate(scr, dbp);
+                        StartUpdate(WORLD, scr, dbp, false);
+                        StartUpdate(PROGRESS, scr, dbs);
                     return;
                 }
                 do
                 {
                     Console.Clear();
-                    Console.WriteLine("GeekBrains | Project ┌Van Helsing┘ | World database updater | v1.1 | by Nelfias");
+                    Console.WriteLine("GeekBrains | Project ┌Van Helsing┘ | Database updater | v1.1 | by Nelfias");
                     Console.WriteLine($"Scripts Path: {scr}");
-                    Console.WriteLine($"Database Path: {dbp}");
+                    Console.WriteLine($"World Database Path: {dbp}");
+                    Console.WriteLine($"Progress Template Database Path: {dbs}");
                     if (Error != "")
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
@@ -45,10 +60,11 @@ namespace GBVH_DatabaseUpdater
                     switch (key.Key)
                     {
                         case ConsoleKey.Y:
-                            StartUpdate(scr, dbp);
+                            StartUpdate(WORLD, scr, dbp, false);
+                            StartUpdate(PROGRESS, scr, dbs);
                             break;
                         case ConsoleKey.O:
-                            ChangeSettings(ref scr, ref dbp);
+                            (scr, dbp, dbs) = ChangeSettings();
                             break;
                     }
                 } while (key.Key != ConsoleKey.E);
@@ -60,25 +76,29 @@ namespace GBVH_DatabaseUpdater
             }
         }
 
-        private static void ChangeSettings(ref string scr, ref string dbp)
+        private static (string, string, string) ChangeSettings()
         {
             Console.Write("Enter Path to scripts:");
-            scr = Console.ReadLine();
+            var scr = Console.ReadLine();
             Console.WriteLine();
-            Console.Write("Enter Path to db:");
-            dbp = Console.ReadLine();
+            Console.Write("Enter Path to World db:");
+            var dbp = Console.ReadLine();
+            Console.WriteLine();
+            Console.Write("Enter Path to Progress db:");
+            var dbs = Console.ReadLine();
+            return (scr, dbp, dbs);
         }
 
-        private static void StartUpdate(string scr, string dbp)
+        private static void StartUpdate(int dbm, string scr, string dbp, bool waitInput = true)
         {
             var db = new DatabaseWrapper(dbp);
             if (db.ExecuteQueryWithAnswer("SELECT name FROM sqlite_master WHERE type='table' AND name='ddl_info';") !=
                 "ddl_info")
             {
-                var createScript = Path.Combine(scr, CreateSqlScript);
+                var createScript = Path.Combine(scr, _scripts[dbm].Item2);
                 if (!File.Exists(createScript))
                 {
-                    Error = $"{CreateSqlScript} not found!";
+                    Error = $"{createScript} not found!";
                     return;
                 }
 
@@ -93,12 +113,11 @@ namespace GBVH_DatabaseUpdater
                 history.Add(row.GetString("Patch"));
             }
 
-            var files = Directory.GetFiles(scr);
+            var files = Directory.GetFiles(scr, $"*_{_scripts[dbm].Item1}_*.sql");
             Array.Sort(files);
             foreach (var file in files)
             {
                 var fi = new FileInfo(file);
-                if (!fi.Name.EndsWith(".sql")) continue;
                 Console.Write($"> {fi.Name} --- ");
                 if (history.Contains(fi.Name))
                 {
@@ -112,6 +131,7 @@ namespace GBVH_DatabaseUpdater
                 Console.WriteLine("OK");
             }
 
+            if (!waitInput) return;
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("Update Complete! Press any key...");
             Console.ForegroundColor = ConsoleColor.Gray;
