@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Text;
 
 namespace GBVH_DatabaseUpdater
 {
@@ -10,6 +11,7 @@ namespace GBVH_DatabaseUpdater
         private const string DefaultScriptsPath = "..\\Assets\\DatabaseSQLScripts";
         private const string DefaultDbPath = "..\\Assets\\StreamingAssets\\world.bytes";
         private static string Error = "";
+        private const string CreateSqlScript = "00000000-0000_world_create.sql";
         public static void Main(string[] args)
         {
             try
@@ -17,9 +19,16 @@ namespace GBVH_DatabaseUpdater
                 ConsoleKeyInfo key;
                 var scr = DefaultScriptsPath;
                 var dbp = DefaultDbPath;
+                if (args.Length >= 0)
+                {
+                    if (args[0] =="-s")
+                        StartUpdate(scr, dbp);
+                    return;
+                }
                 do
                 {
                     Console.Clear();
+                    Console.WriteLine("GeekBrains | Project ┌Van Helsing┘ | World database updater | v1.1 | by Nelfias");
                     Console.WriteLine($"Scripts Path: {scr}");
                     Console.WriteLine($"Database Path: {dbp}");
                     if (Error != "")
@@ -66,10 +75,10 @@ namespace GBVH_DatabaseUpdater
             if (db.ExecuteQueryWithAnswer("SELECT name FROM sqlite_master WHERE type='table' AND name='ddl_info';") !=
                 "ddl_info")
             {
-                var createScript = Path.Combine(scr, "00000000-0000_world_create.sql");
+                var createScript = Path.Combine(scr, CreateSqlScript);
                 if (!File.Exists(createScript))
                 {
-                    Error = "00000000-0000_world_create.sql not found!";
+                    Error = $"{CreateSqlScript} not found!";
                     return;
                 }
 
@@ -83,7 +92,10 @@ namespace GBVH_DatabaseUpdater
             {
                 history.Add(row.GetString("Patch"));
             }
-            foreach (var file in Directory.GetFiles(scr))
+
+            var files = Directory.GetFiles(scr);
+            Array.Sort(files);
+            foreach (var file in files)
             {
                 var fi = new FileInfo(file);
                 if (!fi.Name.EndsWith(".sql")) continue;
