@@ -34,15 +34,15 @@ namespace GBVH_DatabaseUpdater
                 var dbs = DefaultSavePath;
                 if (args.Length > 0)
                 {
-                    if (args[0] =="-s")
-                        StartUpdate(WORLD, scr, dbp, false);
-                        StartUpdate(PROGRESS, scr, dbs);
+                    if (args[0] != "-s") return;
+                    StartUpdate(WORLD, scr, dbp, false);
+                    StartUpdate(PROGRESS, scr, dbs);
                     return;
                 }
                 do
                 {
                     Console.Clear();
-                    Console.WriteLine("GeekBrains | Project ┌Van Helsing┘ | Database updater | v1.1 | by Nelfias");
+                    Console.WriteLine("GeekBrains | Project ┌Van Helsing┘ | Database updater | v1.2 | by Nelfias");
                     Console.WriteLine($"Scripts Path: {scr}");
                     Console.WriteLine($"World Database Path: {dbp}");
                     Console.WriteLine($"Progress Template Database Path: {dbs}");
@@ -125,9 +125,12 @@ namespace GBVH_DatabaseUpdater
                     continue;
                 }
                 Console.Write("NO --- Executing... ");
-                var str = File.ReadAllText(file);
-                db.ExecuteQueryWithoutAnswer(str);
-                db.ExecuteQueryWithoutAnswer($"insert into ddl_info (Patch) values (\"{fi.Name}\");");
+                var strb = new StringBuilder();
+                strb.Append("BEGIN TRANSACTION; ");
+                strb.Append(File.ReadAllText(file).Replace("BEGIN TRANSACTION","").Replace("COMMIT TRANSACTION;",""));
+                strb.Append($"insert into ddl_info (Patch) values (\"{fi.Name}\");");
+                strb.Append("COMMIT;");
+                db.ExecuteQueryWithoutAnswer(strb.ToString());
                 Console.WriteLine("OK");
             }
 
